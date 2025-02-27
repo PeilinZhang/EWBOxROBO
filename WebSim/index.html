@@ -34,19 +34,33 @@
     </div>
 
     <script>
-        let scene, topDownCamera, cameraView, renderer, car, cameraRenderer;
+        let scene, topDownCamera, cameraView, renderer, car, cameraRenderer, wall;
         let carPosition = { x: 0, z: 0, rotation: 0 };
-        let socket = io.connect("http://127.0.0.1:5000");  // Connect WebSocket
+        let wallPosition = { x: 2, z: 2 };
+        let socket = io.connect("http://127.0.0.1:5000");  
 
         function init() {
             scene = new THREE.Scene();
             
-            // Floor
             let floorGeometry = new THREE.PlaneGeometry(20, 20);
             let floorMaterial = new THREE.MeshBasicMaterial({ color: 0x888888, side: THREE.DoubleSide });
             let floor = new THREE.Mesh(floorGeometry, floorMaterial);
             floor.rotation.x = -Math.PI / 2;
             scene.add(floor);
+            
+            let carGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            let carMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            car = new THREE.Mesh(carGeometry, carMaterial);
+            car.position.set(carPosition.x, 0.25, carPosition.z);
+            scene.add(car);
+            // // wall feature commented out
+            // let wallGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.1);
+            // let wallTexture = new THREE.TextureLoader().load('wall_image.jpg');
+            // let wallMaterial = new THREE.MeshBasicMaterial({ map: wallTexture, side: THREE.DoubleSide });
+            // wall = new THREE.Mesh(wallGeometry, wallMaterial);
+            // wall.position.set(wallPosition.x, 0.25, wallPosition.z);
+            // wall.rotation.y = Math.PI / 2;
+            // scene.add(wall);
             
             // Yellow border strip in the middle
             const stripMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
@@ -54,20 +68,11 @@
             strip.position.set(0, 0.01, 0);
             strip.rotation.x = -Math.PI / 2;
             scene.add(strip);
-            
-            // Car (represented as a small cube)
-            let carGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-            let carMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            car = new THREE.Mesh(carGeometry, carMaterial);
-            car.position.set(carPosition.x, 0.25, carPosition.z);
-            scene.add(car);
-            
-            // Top-down camera
+
             topDownCamera = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 100);
             topDownCamera.position.set(0, 10, 0);
             topDownCamera.lookAt(0, 0, 0);
             
-            // First-person camera
             cameraView = new THREE.PerspectiveCamera(75, 1, 0.1, 100);
             updateCameraPosition();
             
@@ -110,24 +115,16 @@
             updateCameraPosition();
         }
 
-        function captureScreenshot() {
-            cameraRenderer.render(scene, cameraView);
-            cameraRenderer.domElement.toBlob(blob => {
-                console.log("Captured Blob:", blob);  // Debugging: See if Blob is created
-                let formData = new FormData();
-                formData.append("screenshot", blob, "camera_view.png");
-
-                fetch("/upload_screenshot", {
-                    method: "POST",
-                    body: formData
-                }).then(response => {
-                    console.log("Screenshot uploaded."); // Debugging
-                    return response.json();
-                }).then(data => console.log(data))
-                .catch(error => console.error("Upload error:", error));
-            });
-        }
-
+        // // wall feature commented out
+        // function moveWall(direction) {
+        //     const step = 0.5;
+        //     if (direction === "forward") wallPosition.z -= step;
+        //     else if (direction === "backward") wallPosition.z += step;
+        //     else if (direction === "left") wallPosition.x -= step;
+        //     else if (direction === "right") wallPosition.x += step;
+        //     else if (direction === "turn") wall.rotation.y += Math.PI / 8;
+        //     wall.position.set(wallPosition.x, 0.25, wallPosition.z);
+        // }
 
         function animate() {
             requestAnimationFrame(animate);
@@ -135,17 +132,15 @@
             cameraRenderer.render(scene, cameraView);
         }
 
-        // WebSocket listener for movement commands
-        socket.on("move_command", function(data) {
-            move(data.direction);
-        });
-
-        // WebSocket listener for screenshot request
-        socket.on("capture_screenshot", function() {
-            captureScreenshot();
-        });
-
         init();
     </script>
+    <!-- wall feature commented out -->
+    <!-- <div class="controls">
+        <button onclick="moveWall('forward')">Move Wall Forward</button>
+        <button onclick="moveWall('backward')">Move Wall Backward</button>
+        <button onclick="moveWall('left')">Move Wall Left</button>
+        <button onclick="moveWall('right')">Move Wall Right</button>
+        <button onclick="moveWall('turn')">Move Wall Turn</button>
+    </div> -->
 </body>
 </html>

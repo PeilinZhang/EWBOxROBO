@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, request
+from flask import Flask, send_from_directory, request, send_file
 from flask_socketio import SocketIO
 from PIL import Image
 import os
@@ -29,7 +29,7 @@ def screenshot():
 
 @app.route('/upload_screenshot', methods=['POST'])
 def upload_screenshot():
-    print("📸 Received screenshot upload request.")  # Debugging
+    print(" Received screenshot upload request.")  # Debugging
 
     if 'screenshot' in request.files:
         screenshot = request.files['screenshot']
@@ -38,15 +38,19 @@ def upload_screenshot():
         
         # Check if the file exists after saving
         if os.path.exists(save_path):
-            print(f"✅ Screenshot successfully saved at: {save_path}")
+            print(f" Screenshot successfully saved at: {save_path}")
             return {"status": "ok", "message": f"Screenshot saved at {save_path}"}
         else:
-            print("❌ Error: File was not saved correctly!")
+            print(" Error: File was not saved correctly!")
             return {"status": "error", "message": "File not found after saving"}, 500
 
-    print("❌ Error: No file received!")
+    print(" Error: No file received!")
     return {"status": "error", "message": "No file received"}, 400
 
+## wall feature commented out
+# @app.route('/wall_image.jpg')
+# def get_wall_image():
+#     return send_file('wall_image.jpg', mimetype='image/jpeg')
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, allow_unsafe_werkzeug=True)

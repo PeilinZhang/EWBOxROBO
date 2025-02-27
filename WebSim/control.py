@@ -19,13 +19,13 @@ def capture_screenshot():
 
     if "camera_view.png" in os.listdir():
         img = Image.open("camera_view.png")
+        #modify the code below if you dont want to modify the image
+        #or if you want to pass the image to a variable.
         img.show()
     else:
         print("Error: Screenshot not found!")
 
-#Dont change the code above
-
-#add image processing code here
+#add image processing code here (and in the capture_screenshot function)
 
 # Example usage:
 move_car("forward")
