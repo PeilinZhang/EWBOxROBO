@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Room Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { display: flex; flex-direction: column; align-items: center; background: #222; color: white; }
+        canvas { display: block; }
+        .controls { margin-top: 10px; }
+        button { margin: 5px; padding: 10px; font-size: 16px; }
+        .view-container { display: flex; gap: 20px; }
+    </style>
+</head>
+<body>
+    <h2>3D Room Simulation</h2>
+    <div class="view-container">
+        <div>
+            <h3>Top-Down View</h3>
+            <canvas id="topDownCanvas"></canvas>
+        </div>
+        <div>
+            <h3>Camera View</h3>
+            <canvas id="cameraCanvas"></canvas>
+        </div>
+    </div>
+    <div class="controls">
+        <button onclick="move('forward')">Move Forward</button>
+        <button onclick="move('left')">Turn Left</button>
+        <button onclick="move('right')">Turn Right</button>
+        <button onclick="captureScreenshot()">Capture Screenshot</button>
+    </div>
+
+    <script>
+        let scene, topDownCamera, cameraView, renderer, car, cameraRenderer;
+        let carPosition = { x: 0, z: 0, rotation: 0 };
+        let socket = io.connect("http://127.0.0.1:5000");  // Connect WebSocket
+
+        function init() {
+            scene = new THREE.Scene();
+            
+            // Floor
+            let floorGeometry = new THREE.PlaneGeometry(20, 20);
+            let floorMaterial = new THREE.MeshBasicMaterial({ color: 0x888888, side: THREE.DoubleSide });
+            let floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            scene.add(floor);
+            
+            // Yellow border strip in the middle
+            const stripMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
+            let strip = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 20), stripMaterial);
+            strip.position.set(0, 0.01, 0);
+            strip.rotation.x = -Math.PI / 2;
+            scene.add(strip);
+            
+            // Car (represented as a small cube)
+            let carGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            let carMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            car = new THREE.Mesh(carGeometry, carMaterial);
+            car.position.set(carPosition.x, 0.25, carPosition.z);
+            scene.add(car);
+            
+            // Top-down camera
+            topDownCamera = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 100);
+            topDownCamera.position.set(0, 10, 0);
+            topDownCamera.lookAt(0, 0, 0);
+            
+            // First-person camera
+            cameraView = new THREE.PerspectiveCamera(75, 1, 0.1, 100);
+            updateCameraPosition();
+            
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(400, 400);
+            document.getElementById("topDownCanvas").replaceWith(renderer.domElement);
+            
+            cameraRenderer = new THREE.WebGLRenderer();
+            cameraRenderer.setSize(400, 400);
+            document.getElementById("cameraCanvas").replaceWith(cameraRenderer.domElement);
+            
+            animate();
+        }
+        
+        function updateCameraPosition() {
+            cameraView.position.set(
+                carPosition.x - Math.sin(carPosition.rotation) * 0.5,
+                0.6,
+                carPosition.z - Math.cos(carPosition.rotation) * 0.5
+            );
+            cameraView.lookAt(
+                carPosition.x - Math.sin(carPosition.rotation),
+                0.2,
+                carPosition.z - Math.cos(carPosition.rotation)
+            );
+        }
+
+        function move(direction) {
+            const step = 0.5;
+            if (direction === "forward") {
+                carPosition.x -= Math.sin(carPosition.rotation) * step;
+                carPosition.z -= Math.cos(carPosition.rotation) * step;
+            } else if (direction === "left") {
+                carPosition.rotation += Math.PI / 8;
+            } else if (direction === "right") {
+                carPosition.rotation -= Math.PI / 8;
+            }
+            car.position.set(carPosition.x, 0.25, carPosition.z);
+            car.rotation.y = carPosition.rotation;
+            updateCameraPosition();
+        }
+
+        function captureScreenshot() {
+            cameraRenderer.render(scene, cameraView);
+            cameraRenderer.domElement.toBlob(blob => {
+                console.log("Captured Blob:", blob);  // Debugging: See if Blob is created
+                let formData = new FormData();
+                formData.append("screenshot", blob, "camera_view.png");
+
+                fetch("/upload_screenshot", {
+                    method: "POST",
+                    body: formData
+                }).then(response => {
+                    console.log("Screenshot uploaded."); // Debugging
+                    return response.json();
+                }).then(data => console.log(data))
+                .catch(error => console.error("Upload error:", error));
+            });
+        }
+
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, topDownCamera);
+            cameraRenderer.render(scene, cameraView);
+        }
+
+        // WebSocket listener for movement commands
+        socket.on("move_command", function(data) {
+            move(data.direction);
+        });
+
+        // WebSocket listener for screenshot request
+        socket.on("capture_screenshot", function() {
+            captureScreenshot();
+        });
+
+        init();
+    </script>
+</body>
+</html>
